@@ -372,6 +372,15 @@ body {
   cursor: default;
   opacity: 0.95;
 }
+/* 오늘 도장을 이미 찍은 상태: 눌러도 토스트로 1일 1회를 알려 줍니다 */
+.sticker-btn.locked {
+  background: linear-gradient(180deg, #cfe9d9 0%, #a9d8bf 100%);
+  box-shadow: 0 6px 0 #86bd9e;
+  color: #1f5c3c;
+  cursor: pointer;
+  opacity: 1;
+}
+.sticker-btn.locked:active { transform: translateY(3px); box-shadow: 0 3px 0 #86bd9e; }
 .sticker-hint {
   margin: 12px 4px 0;
   font-size: 14px;
@@ -437,12 +446,21 @@ body {
 .cell.pop .paw { animation: stampDrop 0.46s cubic-bezier(0.22, 1.5, 0.4, 1); }
 .cell-date {
   position: absolute;
-  right: 4px;
-  bottom: 2px;
-  font-size: 9px;
-  font-weight: 700;
-  color: #a8917a;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.94);
+  border: 1.5px solid rgba(59, 42, 32, 0.14);
+  font-size: 11px;
+  font-weight: 900;
+  color: #3b2a20;
+  line-height: 1.15;
+  white-space: nowrap;
   letter-spacing: -0.2px;
+  box-shadow: 0 1px 2px rgba(59, 42, 32, 0.12);
+  pointer-events: none;
 }
 .cell-ms {
   position: absolute;
@@ -608,6 +626,62 @@ body {
 }
 .ghost-btn.wide { width: 100%; }
 .ghost-btn:active { transform: translateY(1px); }
+.ghost-btn.danger { color: var(--red); border-color: #ffcfcb; background: #fff7f6; }
+.ghost-btn.armed {
+  color: #fff;
+  background: linear-gradient(180deg, #ff6f63, var(--red));
+  border-style: solid;
+  border-color: var(--red-deep);
+  box-shadow: 0 3px 0 var(--red-deep);
+  animation: gateShake 0.32s ease;
+}
+
+/* ===== 어른 확인 (아이 방지) 모달 ===== */
+.modal.gate .modal-emoji { font-size: 30px; }
+.modal.gate h2 { font-size: 26px; color: var(--blue); text-shadow: 2px 2px 0 #e2edff; }
+.modal.gate .modal-sub { margin-bottom: 12px; }
+.gate-quiz {
+  margin: 0 auto 12px;
+  font-family: "Jua", "Noto Sans KR", sans-serif;
+  font-size: 30px;
+  color: #7a4a00;
+  background: linear-gradient(180deg, #fff7dc, #ffe9a8);
+  border-radius: 16px;
+  padding: 10px 14px;
+  letter-spacing: 1px;
+}
+.gate-input {
+  width: 100%;
+  font-family: "Jua", "Noto Sans KR", sans-serif;
+  font-size: 28px;
+  text-align: center;
+  color: var(--ink);
+  background: #fffdf6;
+  border: 2px solid #ecdcbf;
+  border-radius: 16px;
+  padding: 10px 12px;
+  outline: none;
+  margin-bottom: 8px;
+  -moz-appearance: textfield;
+}
+.gate-input::-webkit-outer-spin-button, .gate-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.gate-input:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(31, 111, 235, 0.14); }
+.gate-msg {
+  margin: 0 0 10px;
+  min-height: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
+  line-height: 1.4;
+}
+.gate.shake { animation: gateShake 0.34s ease; }
+@keyframes gateShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
 
 /* ===== 축하 모달 ===== */
 .modal-wrap {
@@ -758,5 +832,5 @@ body {
   .hero-title-label { font-size: 12px; padding: 2px 10px 3px; }
   .hero-title-main { font-size: 21px; letter-spacing: -0.6px; }
   .board { gap: 5px; padding: 6px; }
-  .cell-date { font-size: 8px; right: 3px; }
+  .cell-date { font-size: 10px; bottom: 3px; padding: 1px 5px; border-width: 1px; }
 }

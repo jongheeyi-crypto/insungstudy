@@ -4,9 +4,11 @@
   "use strict";
 
   var KEY = "insungstudy.v1";
+  var RESET_KEY = "insungstudy.resets";
   var BOARD_SIZE = 30;
   var SVGNS = "http://www.w3.org/2000/svg";
   var DEFAULT_REWARD = "다이소 가서 원하는 거 고르기";
+  var FULL_RESET_LABEL = "🔄 전체 초기화 (0부터 다시)";
 
   var DEFAULT_MISSIONS = [
     { id: "m_math1", emoji: "🔢", name: "원리셈" },
@@ -199,6 +201,65 @@
     return state.board.some(function (e) { return e.key === key && !e.manual; });
   }
 
+  /* ---------- 초기화 (스티커판·미션 체크·기록만 0으로) ---------- */
+  function clearProgress() {
+    state.board = [];
+    state.checks = {};
+    state.boardsDone = 0;
+    state.history = [];
+    animateIndex = -1;
+    save();
+  }
+
+  /* 일회성 초기화 토큰 기억 (한 번 쓴 링크는 다시 지우지 않도록) */
+  function appliedResets() {
+    try {
+      var raw = window.localStorage.getItem(RESET_KEY);
+      var list = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list)) return [];
+      return list.filter(function (t) { return typeof t === "string" && t; });
+    } catch (err) { return []; }
+  }
+
+  function rememberReset(token) {
+    var list = appliedResets();
+    if (list.indexOf(token) !== -1) return;
+    list.push(token);
+    try { window.localStorage.setItem(RESET_KEY, JSON.stringify(list.slice(-40))); } catch (err) { /* 무시 */ }
+  }
+
+  function stripResetParam() {
+    try {
+      if (typeof window.URL !== "function" || typeof window.URLSearchParams !== "function") return;
+      var url = new window.URL(window.location.href);
+      if (!url.searchParams.has("reset")) return;
+      url.searchParams.delete("reset");
+      var q = url.searchParams.toString();
+      window.history.replaceState({}, document.title, url.pathname + (q ? "?" + q : "") + url.hash);
+    } catch (err) { /* 주소 정리 실패는 무시 */ }
+  }
+
+  /* ?reset=토큰 → 아직 실행한 적 없는 토큰일 때만 초기화. 결과: "done" | "already" | null */
+  function readResetToken() {
+    var token = null;
+    try {
+      if (typeof window.URLSearchParams !== "function") return null;
+      var params = new window.URLSearchParams(window.location.search);
+      token = params.get("reset");
+    } catch (err) { return null; }
+    if (!token) return null;
+    token = String(token).trim().slice(0, 60);
+    if (!token) { stripResetParam(); return null; }
+
+    var seen = appliedResets().indexOf(token) !== -1;
+    if (!seen) {
+      clearProgress();
+      rememberReset(token);
+    }
+    stripResetParam();
+    return seen ? "already" : "done";
+  }
+
   function nextColor() {
     return PAW_COLORS[state.board.length % PAW_COLORS.length];
   }
@@ -209,7 +270,7 @@
 
   function giveSticker() {
     if (state.board.length >= BOARD_SIZE) { openCelebrate(); return; }
-    if (hasTodaySticker()) { toast("오늘은 이미 받았어요! 내일 또 출동하자!"); return; }
+    if (hasTodaySticker()) { toast("오늘 도장 완료! 하루에 1번만 찍을 수 있어요 🐾"); return; }
     var color = nextColor();
     state.board.push({ key: todayKey(), label: todayLabel(), color: color, rot: randomRot() });
     animateIndex = state.board.length - 1;
@@ -484,7 +545,8 @@
     var stamped = hasTodaySticker();
     var allDone = total > 0 && done === total;
 
-    btn.classList.remove("ready", "filled");
+    btn.classList.remove("ready", "filled", "locked");
+    btn.removeAttribute("aria-disabled");
     hint.classList.remove("done");
 
     if (full) {
@@ -498,8 +560,11 @@
     btn.textContent = "🐾 발자국 스티커 받기!";
 
     if (stamped) {
-      btn.disabled = true;
-      hint.textContent = "오늘 발자국 스티커 완료! 내일 또 출동하자!";
+      btn.disabled = false;
+      btn.classList.add("locked");
+      btn.setAttribute("aria-disabled", "true");
+      btn.textContent = "🐾 오늘 도장 완료!";
+      hint.textContent = "오늘 발자국 스티커 완료! 하루에 1번만 찍을 수 있어요 🐾";
       hint.classList.add("done");
       return;
     }
@@ -591,6 +656,7 @@
   function closeSettings() {
     byId("settingsWrap").hidden = true;
     document.body.style.overflow = "";
+    disarmFullReset();
   }
 
   function openCelebrate() {
@@ -605,6 +671,113 @@
   function closeCelebrate() {
     byId("celebrateWrap").hidden = true;
     document.body.style.overflow = "";
+  }
+
+  /* ---------- 어른 확인 (아이 방지) ---------- */
+  var gateState = { answer: null, onPass: null, wrong: 0, timer: null };
+
+  function newGateQuestion() {
+    var a, b;
+    do {
+      a = 3 + Math.floor(Math.random() * 7);
+      b = 3 + Math.floor(Math.random() * 7);
+    } while (a + b < 10);
+    gateState.answer = a + b;
+    var q = byId("gateQuestion");
+    if (q) q.textContent = a + " + " + b + " =";
+  }
+
+  function openGate(onPass) {
+    gateState.onPass = typeof onPass === "function" ? onPass : null;
+    gateState.wrong = 0;
+    newGateQuestion();
+    var input = byId("gateAnswer");
+    if (input) input.value = "";
+    var msg = byId("gateMsg");
+    if (msg) msg.textContent = "";
+    var wrap = byId("gateWrap");
+    if (wrap) wrap.hidden = false;
+    document.body.style.overflow = "hidden";
+    window.setTimeout(function () {
+      try { if (input) input.focus(); } catch (err) { /* 무시 */ }
+    }, 80);
+  }
+
+  function closeGate() {
+    var wrap = byId("gateWrap");
+    if (wrap) wrap.hidden = true;
+    gateState.answer = null;
+    gateState.onPass = null;
+    document.body.style.overflow = "";
+  }
+
+  function shakeGate() {
+    var modal = byId("gateModal");
+    if (!modal) return;
+    modal.classList.remove("shake");
+    void modal.offsetWidth;
+    modal.classList.add("shake");
+    window.clearTimeout(gateState.timer);
+    gateState.timer = window.setTimeout(function () { modal.classList.remove("shake"); }, 460);
+  }
+
+  function submitGate() {
+    var input = byId("gateAnswer");
+    var msg = byId("gateMsg");
+    var raw = input ? String(input.value).replace(/[^0-9]/g, "") : "";
+    if (!raw) {
+      if (msg) msg.textContent = "답을 적어 주세요.";
+      if (input) input.focus();
+      return;
+    }
+    if (parseInt(raw, 10) === gateState.answer) {
+      var cb = gateState.onPass;
+      closeGate();
+      if (cb) cb();
+      return;
+    }
+    gateState.wrong += 1;
+    if (gateState.wrong >= 3) {
+      if (msg) msg.textContent = "정답이 아니에요. 새 문제로 다시 해 볼까요?";
+      gateState.wrong = 0;
+      newGateQuestion();
+    } else if (msg) {
+      msg.textContent = "정답이 아니에요. 다시 계산해 볼까요?";
+    }
+    if (input) { input.value = ""; input.focus(); }
+    shakeGate();
+  }
+
+  /* ---------- 전체 초기화 (두 번 눌러 확인) ---------- */
+  var fullResetArmed = false;
+  var fullResetTimer = null;
+
+  function disarmFullReset() {
+    fullResetArmed = false;
+    var btn = byId("fullResetBtn");
+    if (!btn) return;
+    btn.classList.remove("armed");
+    btn.textContent = FULL_RESET_LABEL;
+  }
+
+  function onFullResetClick() {
+    var btn = byId("fullResetBtn");
+    if (!btn) return;
+    if (!fullResetArmed) {
+      fullResetArmed = true;
+      btn.classList.add("armed");
+      btn.textContent = "한 번 더 누르면 0개로 초기화돼요";
+      toast("한 번 더 누르면 스티커판이 0개로 초기화돼요");
+      window.clearTimeout(fullResetTimer);
+      fullResetTimer = window.setTimeout(disarmFullReset, 6000);
+      return;
+    }
+    window.clearTimeout(fullResetTimer);
+    disarmFullReset();
+    clearProgress();
+    render();
+    renderEditor();
+    toast("🔄 스티커판을 0부터 다시 시작해요! (0 / 30)");
   }
 
   function addMissionFromInput() {
@@ -717,12 +890,40 @@
     if (stickerBtn) {
       stickerBtn.addEventListener("click", function () {
         if (state.board.length >= BOARD_SIZE) { openCelebrate(); return; }
-        if (!stickerBtn.disabled) giveSticker();
+        if (hasTodaySticker()) {
+          toast("오늘 도장 완료! 하루에 1번만 찍을 수 있어요 🐾");
+          return;
+        }
+        if (stickerBtn.disabled) return;
+        giveSticker();
       });
     }
 
     var momBtn = byId("momBtn");
-    if (momBtn) momBtn.addEventListener("click", openSettings);
+    if (momBtn) momBtn.addEventListener("click", function () { openGate(openSettings); });
+
+    var gateOk = byId("gateOkBtn");
+    if (gateOk) gateOk.addEventListener("click", submitGate);
+
+    var gateCancel = byId("gateCancelBtn");
+    if (gateCancel) gateCancel.addEventListener("click", closeGate);
+
+    var gateAnswer = byId("gateAnswer");
+    if (gateAnswer) {
+      gateAnswer.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { ev.preventDefault(); submitGate(); }
+      });
+    }
+
+    var gateWrap = byId("gateWrap");
+    if (gateWrap) {
+      gateWrap.addEventListener("click", function (ev) {
+        if (ev.target === gateWrap) closeGate();
+      });
+    }
+
+    var fullResetBtn = byId("fullResetBtn");
+    if (fullResetBtn) fullResetBtn.addEventListener("click", onFullResetClick);
 
     Array.prototype.forEach.call(document.querySelectorAll("[data-close]"), function (el) {
       el.addEventListener("click", function () {
@@ -818,9 +1019,11 @@
 
     document.addEventListener("keydown", function (ev) {
       if (ev.key !== "Escape") return;
+      var gate = byId("gateWrap");
       var celebrate = byId("celebrateWrap");
       var settings = byId("settingsWrap");
-      if (celebrate && !celebrate.hidden) closeCelebrate();
+      if (gate && !gate.hidden) closeGate();
+      else if (celebrate && !celebrate.hidden) closeCelebrate();
       else if (settings && !settings.hidden) closeSettings();
     });
   }
@@ -828,6 +1031,7 @@
   /* ---------- 시작 ---------- */
   function init() {
     load();
+    var resetResult = readResetToken();
     var today = todayKey();
     var changed = state.lastVisit && state.lastVisit !== today;
     state.lastVisit = today;
@@ -835,7 +1039,11 @@
     render();
     renderEditor();
     bindEvents();
-    if (changed) {
+    if (resetResult === "done") {
+      window.setTimeout(function () { toast("🔄 스티커판과 오늘 미션을 깔끔히 초기화했어요!"); }, 450);
+    } else if (resetResult === "already") {
+      window.setTimeout(function () { toast("이미 초기화한 링크예요. 지금 스티커판은 그대로 둘게요."); }, 450);
+    } else if (changed) {
       window.setTimeout(function () { toast("새로운 하루! 오늘도 출동 준비 완료! 🚨"); }, 400);
     }
     if (state.board.length >= BOARD_SIZE) {
@@ -852,6 +1060,8 @@
   /* 테스트·백업 확인용 (읽기 전용) */
   window.__insung = {
     getState: function () { return JSON.parse(JSON.stringify(state)); },
-    todayKey: todayKey
+    todayKey: todayKey,
+    hasTodaySticker: hasTodaySticker,
+    appliedResets: appliedResets
   };
 })();
