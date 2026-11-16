@@ -1,6 +1,7 @@
 /* ===== 인성이 구조대 · 미션 & 발자국 스티커판 =====
    서버 없이 localStorage 에만 저장합니다.
-   v2: 요일별 자동 스케줄(state.schedule) 도입 */
+   v2: 요일별 자동 스케줄(state.schedule) 도입
+   v3: 수·금·토 기본 스케줄 개정(웅진 유아독해·유아어휘 추가) + v1/v2 자동 업그레이드 */
 (function () {
   "use strict";
 
@@ -24,17 +25,21 @@
     books: { id: "m_books", emoji: "📚", name: "원서 3권", steps: ["1", "2", "3"] },
     somaHw1: { id: "m_somahw1", emoji: "📝", name: "소마숙제 1/2" },
     somaHw2: { id: "m_somahw2", emoji: "📝", name: "소마숙제 2/2" },
-    jangwon: { id: "m_jangwon", emoji: "📖", name: "장원숙제" }
+    jangwon: { id: "m_jangwon", emoji: "📖", name: "장원숙제" },
+    woongjinRead: { id: "m_wj_read", emoji: "📘", name: "웅진 유아독해" },
+    woongjinVocab: { id: "m_wj_vocab", emoji: "🔤", name: "웅진 유아어휘" }
   };
 
   /* Date.getDay() 기준: 1=월 … 6=토, 0=일 */
   var DEFAULT_SCHEDULE = {
     "1": [MISSION_DEFS.math1, MISSION_DEFS.math2, MISSION_DEFS.shape, MISSION_DEFS.english, MISSION_DEFS.books],
     "2": [MISSION_DEFS.somaHw1, MISSION_DEFS.english, MISSION_DEFS.books],
-    "3": [MISSION_DEFS.somaHw2, MISSION_DEFS.math1, MISSION_DEFS.english, MISSION_DEFS.books],
+    "3": [MISSION_DEFS.somaHw2, MISSION_DEFS.math1, MISSION_DEFS.english, MISSION_DEFS.books,
+          MISSION_DEFS.woongjinRead, MISSION_DEFS.woongjinVocab],
     "4": [MISSION_DEFS.math1, MISSION_DEFS.math2, MISSION_DEFS.shape, MISSION_DEFS.english, MISSION_DEFS.books],
-    "5": [MISSION_DEFS.math1, MISSION_DEFS.math2, MISSION_DEFS.shape],
-    "6": [MISSION_DEFS.jangwon, MISSION_DEFS.english, MISSION_DEFS.math1, MISSION_DEFS.math2, MISSION_DEFS.shape],
+    "5": [MISSION_DEFS.math1, MISSION_DEFS.math2, MISSION_DEFS.shape, MISSION_DEFS.english, MISSION_DEFS.books],
+    "6": [MISSION_DEFS.jangwon, MISSION_DEFS.math1, MISSION_DEFS.math2, MISSION_DEFS.shape,
+          MISSION_DEFS.woongjinRead, MISSION_DEFS.woongjinVocab],
     "0": []
   };
 
@@ -85,7 +90,7 @@
 
   function freshState() {
     return {
-      version: 2,
+      version: 3,
       reward: DEFAULT_REWARD,
       schedule: defaultSchedule(),
       checks: {},
@@ -114,27 +119,30 @@
       });
   }
 
-  /* v1(요일 스케줄 없음) → v2 마이그레이션:
-     board·boardsDone·reward·history·checks·lastVisit 는 그대로 살리고
-     schedule 은 새 DEFAULT_SCHEDULE 로 채웁니다. */
+  /* v1(요일 스케줄 없음)·v2(예전 기본 요일표) → v3 마이그레이션:
+     board·boardsDone·reward·history·checks·lastVisit 은 그대로 살리고
+     schedule 은 새 DEFAULT_SCHEDULE 로 채웁니다.
+     v3 부터는 저장된 schedule 을 그대로 읽습니다(엄마 설정에서 고친 내용 유지). */
   function normalizeState(raw) {
     var s = freshState();
     if (!raw || typeof raw !== "object") return s;
+
+    var rawVersion = Number(raw.version);
+    if (!isFinite(rawVersion)) rawVersion = 1; /* version 없는 예전 데이터 = v1 */
 
     if (typeof raw.reward === "string" && raw.reward.trim()) {
       s.reward = raw.reward.trim().slice(0, 40);
     }
 
-    if (raw.schedule && typeof raw.schedule === "object" && !Array.isArray(raw.schedule)) {
+    if (rawVersion >= 3 && raw.schedule && typeof raw.schedule === "object" && !Array.isArray(raw.schedule)) {
       DAY_ORDER.forEach(function (d) {
         var k = String(d);
         if (Object.prototype.hasOwnProperty.call(raw.schedule, k)) {
           s.schedule[k] = normalizeMissions(raw.schedule[k]);
         }
       });
-    } else if (raw.version === 2) {
-      /* 스케줄만 비어 있는 v2 는 기본 요일표로 채웁니다 (freshState 값 유지) */
     }
+    /* v1·v2 는 저장된 요일표를 버리고 freshState 의 새 기본 요일표를 그대로 씁니다. */
 
     if (raw.checks && typeof raw.checks === "object") {
       var checks = {};
