@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#FFF6E5" />
+<title>인성이 구조대 🐾 미션 출동!</title>
+<meta name="description" content="인성이의 하루 미션을 체크하고 발자국 스티커를 모으는 칭찬 스티커판." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='78'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!-- ===== 공용 SVG 심볼 (직접 그린 발자국 · 방패 배지) ===== -->
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  <symbol id="pawShape" viewBox="0 0 100 100">
+    <ellipse cx="21" cy="39" rx="10.5" ry="13.6" transform="rotate(-20 21 39)" />
+    <ellipse cx="40" cy="25" rx="11" ry="14.6" transform="rotate(-7 40 25)" />
+    <ellipse cx="61" cy="25" rx="11" ry="14.6" transform="rotate(7 61 25)" />
+    <ellipse cx="80" cy="39" rx="10.5" ry="13.6" transform="rotate(20 80 39)" />
+    <path d="M50.5 47c13.4 0 25.5 9.2 25.5 21.4C76 80.6 66.6 87 50.5 87S25 80.6 25 68.4C25 56.2 37.1 47 50.5 47z" />
+  </symbol>
+  <symbol id="shieldShape" viewBox="0 0 120 130">
+    <path d="M60 5 110 25v35c0 30-22 53-50 65C32 113 10 90 10 60V25L60 5z" fill="#EE3E38" />
+    <path d="M60 14 101 30v29.5c0 25.4-18.4 45-41 55.5C37.4 104.5 19 84.9 19 59.5V30L60 14z" fill="#FFC93C" />
+    <path d="M60 21 94 34v25c0 21.6-15 38.6-34 48-19-9.4-34-26.4-34-48V34l34-13z" fill="#FFF6E5" />
+  </symbol>
+</svg>
+
+<div class="sky" aria-hidden="true">
+  <span class="cloud cloud-a"></span>
+  <span class="cloud cloud-b"></span>
+  <span class="cloud cloud-c"></span>
+  <span class="sun"></span>
+</div>
+
+<div class="app">
+  <header class="hero">
+    <svg class="hero-badge" viewBox="0 0 120 130" role="img" aria-label="퍼피 구조대 배지">
+      <use href="#shieldShape" />
+      <g class="badge-paw" transform="translate(32 42) scale(0.47)">
+        <use href="#pawShape" />
+      </g>
+    </svg>
+    <h1 class="hero-title">인성이 구조대</h1>
+    <p class="hero-sub"><span class="siren" aria-hidden="true">🚨</span> 오늘도 힘차게 출동!</p>
+  </header>
+
+  <main>
+    <!-- ===== 목표 상품 ===== -->
+    <section class="goal card" aria-labelledby="goalKicker">
+      <svg class="goal-dog" viewBox="0 0 120 120" role="img" aria-label="구조대 강아지">
+        <ellipse cx="26" cy="46" rx="14" ry="25" fill="#B07C4A" transform="rotate(-16 26 46)" />
+        <ellipse cx="94" cy="46" rx="14" ry="25" fill="#B07C4A" transform="rotate(16 94 46)" />
+        <circle cx="60" cy="58" r="42" fill="#FDE4C4" />
+        <ellipse cx="60" cy="75" rx="24" ry="18" fill="#FFF7EC" />
+        <circle cx="45" cy="51" r="6.2" fill="#3B2A20" />
+        <circle cx="75" cy="51" r="6.2" fill="#3B2A20" />
+        <circle cx="47" cy="49" r="2" fill="#fff" />
+        <circle cx="77" cy="49" r="2" fill="#fff" />
+        <ellipse cx="60" cy="65" rx="8" ry="6.2" fill="#3B2A20" />
+        <path d="M60 71v5" stroke="#3B2A20" stroke-width="2.6" stroke-linecap="round" />
+        <path d="M60 76c-3.6 3.4-7.6 3.4-11 0M60 76c3.6 3.4 7.6 3.4 11 0" fill="none" stroke="#3B2A20" stroke-width="2.6" stroke-linecap="round" />
+        <ellipse cx="60" cy="90" rx="6.4" ry="7.4" fill="#FF7A8A" />
+        <rect x="28" y="96" width="64" height="12" rx="6" fill="#EE3E38" />
+        <circle cx="60" cy="102" r="8.5" fill="#FFC93C" />
+        <g transform="translate(54.4 96.4) scale(0.11)" fill="#EE3E38"><use href="#pawShape" /></g>
+      </svg>
+      <div class="goal-body">
+        <p class="goal-kicker" id="goalKicker">우리의 목표 🎁</p>
+        <p class="goal-reward"><span class="gift" aria-hidden="true">🎁</span><span id="rewardText">다이소 가서 원하는 거 고르기</span></p>
+        <div class="meter">
+          <div class="meter-fill" id="goalFill"></div>
+          <span class="meter-label" id="goalCount">0 / 30</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 오늘의 미션 ===== -->
+    <section class="missions" aria-labelledby="missionTitle">
+      <div class="section-head">
+        <h2 id="missionTitle">오늘의 미션</h2>
+        <span class="pill" id="missionProgress">0 / 5</span>
+      </div>
+      <div id="missionList" class="mission-list"></div>
+      <p class="mission-tip">미션을 다 하면 <strong>🐾 발자국 스티커</strong>를 받을 수 있어요!</p>
+    </section>
+
+    <!-- ===== 스티커 받기 ===== -->
+    <section class="sticker-cta">
+      <button type="button" id="stickerBtn" class="sticker-btn" disabled>🐾 발자국 스티커 받기!</button>
+      <p class="sticker-hint" id="stickerHint">미션 5개를 모두 완료하면 버튼이 켜져요!</p>
+    </section>
+
+    <!-- ===== 스티커판 ===== -->
+    <section class="board-card card" aria-labelledby="boardTitle">
+      <div class="section-head">
+        <h2 id="boardTitle">🐾 발자국 스티커판</h2>
+        <span class="pill blue" id="boardProgress">0 / 30</span>
+      </div>
+      <p class="trophy" id="trophyBadge">🏆 달성한 판 0개</p>
+      <ol class="board" id="board" aria-label="발자국 스티커 30칸"></ol>
+      <p class="board-note">30개를 다 모으면 <strong id="boardRewardNote">다이소 가서 원하는 거 고르기</strong>! 🎁</p>
+      <div class="board-actions">
+        <button type="button" id="momBtn" class="mom-btn">⚙️ 엄마 설정</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>이 브라우저에만 저장돼요 · 무료 GitHub Pages</p>
+    <p class="foot-small">만든 사람: 엄마 💛 · 우리 인성이 화이팅!</p>
+  </footer>
+</div>
+
+<!-- ===== 엄마 설정 (바텀시트) ===== -->
+<div class="sheet-wrap" id="settingsWrap" hidden>
+  <div class="sheet-backdrop" data-close="1"></div>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="sheet-grab" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <h2 id="settingsTitle">⚙️ 엄마 설정</h2>
+      <button type="button" class="x-btn" data-close="1" aria-label="닫기">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label class="field-label" for="rewardInput">🎁 상품 이름</label>
+        <input id="rewardInput" class="text-input" type="text" maxlength="40" placeholder="다이소 가서 원하는 거 고르기" />
+      </div>
+
+      <div class="field">
+        <p class="field-label">📋 오늘의 미션</p>
+        <div id="missionEditor" class="editor"></div>
+        <div class="row">
+          <input id="newMissionName" class="text-input" type="text" maxlength="20" placeholder="새 미션 이름 (예: 한글 쓰기)" />
+          <button type="button" id="addMissionBtn" class="mini-btn">추가</button>
+        </div>
+        <button type="button" id="resetMissionsBtn" class="ghost-btn">기본 5개로 복원</button>
+      </div>
+
+      <div class="field">
+        <p class="field-label">🐾 스티커 직접 조정</p>
+        <div class="row">
+          <button type="button" id="minusStickerBtn" class="mini-btn ghost">−1 취소</button>
+          <button type="button" id="plusStickerBtn" class="mini-btn">+1 보충</button>
+          <button type="button" id="resetTodayBtn" class="mini-btn ghost">오늘 미션 초기화</button>
+        </div>
+        <p class="field-help">빠진 날은 +1로 보충하고, 잘못 찍었으면 −1로 지워요.</p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="backupBox">💾 기기 백업 · 이동 (JSON)</label>
+        <textarea id="backupBox" class="text-area" rows="5" spellcheck="false" placeholder="내보내기를 누르면 여기에 저장 내용이 나와요. 다른 기기에서는 이 내용을 붙여넣고 가져오기를 누르세요."></textarea>
+        <div class="row">
+          <button type="button" id="exportBtn" class="mini-btn">내보내기 · 복사</button>
+          <button type="button" id="importBtn" class="mini-btn ghost">가져오기</button>
+          <button type="button" id="copyBtn" class="mini-btn ghost">복사만</button>
+        </div>
+        <p class="field-help">이 브라우저에만 저장돼요(무료 GitHub Pages). 브라우저 기록을 지우면 스티커도 사라지니 가끔 내보내 두세요.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== 30개 축하 모달 ===== -->
+<div class="modal-wrap" id="celebrateWrap" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="celebrateTitle">
+    <p class="modal-emoji" aria-hidden="true">🎉🐾🎉</p>
+    <h2 id="celebrateTitle">30개 대성공!</h2>
+    <p class="modal-reward">🎁 <span id="modalReward">다이소 가서 원하는 거 고르기</span></p>
+    <p class="modal-sub">인성이가 발자국 30개를 다 모았어요!<br />구조대 출동 완료!</p>
+    <button type="button" id="claimBtn" class="claim-btn">🎁 상품 받았어요! 새 스티커판 시작하기</button>
+    <button type="button" id="laterBtn" class="ghost-btn wide" data-close="1">조금 있다가 할래요</button>
+  </div>
+</div>
+
+<div id="confetti" class="confetti" aria-hidden="true"></div>
+<div class="stamp" id="stampLayer" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
