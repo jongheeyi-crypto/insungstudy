@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='78'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="styles.css?v=3" />
+<link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
 <!-- ===== 공용 SVG 심볼 (직접 그린 발자국 · 방패 배지) ===== -->
@@ -82,14 +82,16 @@
       </div>
     </section>
 
-    <!-- ===== 오늘의 미션 ===== -->
+    <!-- ===== 오늘의 미션 (요일별) ===== -->
     <section class="missions" aria-labelledby="missionTitle">
       <div class="section-head">
-        <h2 id="missionTitle">오늘의 미션</h2>
+        <h2 id="missionTitle"><span id="missionTitleMain">오늘의 미션</span><span class="day-tag" id="missionDayTag"> · 월요일</span></h2>
         <span class="pill" id="missionProgress">0 / 5</span>
       </div>
+      <div class="day-tabs" id="dayTabs" role="tablist" aria-label="요일별 미션 보기"></div>
+      <p class="preview-note" id="previewNote" hidden></p>
       <div id="missionList" class="mission-list"></div>
-      <p class="mission-tip">미션을 다 하면 <strong>🐾 발자국 스티커</strong>를 받을 수 있어요!</p>
+      <p class="mission-tip" id="missionTip">미션을 다 하면 <strong>🐾 발자국 스티커</strong>를 받을 수 있어요!</p>
     </section>
 
     <!-- ===== 스티커 받기 ===== -->
@@ -135,13 +137,16 @@
       </div>
 
       <div class="field">
-        <p class="field-label">📋 오늘의 미션</p>
+        <p class="field-label">📋 요일별 미션</p>
+        <div class="day-tabs edit-tabs" id="editDayTabs" role="tablist" aria-label="고칠 요일 선택"></div>
+        <p class="edit-day-note" id="editDayNote">월요일 미션을 고치고 있어요</p>
         <div id="missionEditor" class="editor"></div>
         <div class="row">
           <input id="newMissionName" class="text-input" type="text" maxlength="20" placeholder="새 미션 이름 (예: 한글 쓰기)" />
           <button type="button" id="addMissionBtn" class="mini-btn">추가</button>
         </div>
-        <button type="button" id="resetMissionsBtn" class="ghost-btn">기본 5개로 복원</button>
+        <button type="button" id="resetMissionsBtn" class="ghost-btn">기본 요일표로 복원</button>
+        <p class="field-help">요일을 골라 그 날의 미션만 고칠 수 있어요. 미션을 다 지우면 그 요일은 쉬는 날이 돼요.</p>
       </div>
 
       <div class="field">
@@ -157,7 +162,7 @@
       <div class="field">
         <p class="field-label">🔄 처음부터 다시</p>
         <button type="button" id="fullResetBtn" class="ghost-btn wide danger">🔄 전체 초기화 (0부터 다시)</button>
-        <p class="field-help">스티커판·오늘 미션 체크·달성한 판 기록을 모두 지우고 0/30부터 다시 시작해요. 상품 이름과 미션 목록은 그대로 남아요. (두 번 눌러야 지워져요)</p>
+        <p class="field-help">스티커판·오늘 미션 체크·달성한 판 기록을 모두 지우고 0/30부터 다시 시작해요. 상품 이름과 요일별 미션표는 그대로 남아요. (두 번 눌러야 지워져요)</p>
       </div>
 
       <div class="field">
@@ -204,6 +209,6 @@
 <div class="stamp" id="stampLayer" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

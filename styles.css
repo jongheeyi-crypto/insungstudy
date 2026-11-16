@@ -234,6 +234,63 @@ body {
   white-space: nowrap;
 }
 .pill.blue { background: var(--blue); box-shadow: 0 3px 0 var(--blue-deep); }
+.section-head h2 .day-tag { color: var(--blue); font-size: 19px; }
+
+/* ===== 요일 탭 ===== */
+.day-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.day-tab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border: 2px solid #ecdcbf;
+  border-radius: 15px;
+  background: #fffdf6;
+  color: #b8a189;
+  font-family: "Jua", "Noto Sans KR", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+  padding: 10px 0 9px;
+  box-shadow: 0 3px 0 #efe1c8;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+}
+.day-tab .dt-label { display: block; }
+.day-tab .dt-dot {
+  display: block;
+  width: 5px;
+  height: 5px;
+  margin: 4px auto 0;
+  border-radius: 50%;
+  background: var(--red);
+}
+.day-tab.today { border-color: #f3d08a; color: #9a6a00; background: #fffaf0; }
+.day-tab.on {
+  background: linear-gradient(180deg, #4a8bf5 0%, var(--blue) 100%);
+  border-color: var(--blue-deep);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--blue-deep);
+}
+.day-tab.on .dt-dot { background: #fff; }
+.day-tab:active { transform: translateY(2px); box-shadow: 0 1px 0 #e3d3b6; }
+.day-tab:focus-visible { outline: 3px solid rgba(31, 111, 235, 0.45); outline-offset: 2px; }
+
+.preview-note {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 15px;
+  background: #eef4ff;
+  border: 2px dashed #b9d3ff;
+  color: var(--blue-deep);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+  word-break: keep-all;
+}
 
 /* ===== 미션 ===== */
 .missions { margin: 20px 0 18px; }
@@ -341,6 +398,40 @@ body {
   text-align: center;
 }
 
+/* 미리보기(다른 요일 보기) 상태 — 읽기 전용 */
+.mission-list.preview .mission {
+  cursor: default;
+  pointer-events: none;
+}
+.mission-list.preview .mission:active { transform: none; }
+.mission-list.preview .mission .mission-name { color: var(--ink-soft); }
+.mission-list.preview .tick { border-color: #e7e0f3; background: #fbf9ff; }
+
+/* 쉬는 날 카드 */
+.rest-card {
+  padding: 26px 18px 24px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #fffdf8 0%, #f4f0ff 100%);
+  border: 3px dashed #cfc0f0;
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+}
+.rest-emoji { display: block; font-size: 42px; line-height: 1; }
+.rest-title {
+  margin: 10px 0 4px;
+  font-family: "Jua", "Noto Sans KR", sans-serif;
+  font-size: 21px;
+  color: var(--ink);
+  word-break: keep-all;
+}
+.rest-sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
 /* ===== 스티커 받기 버튼 ===== */
 .sticker-cta { margin: 6px 0 22px; text-align: center; }
 .sticker-btn {
@@ -381,6 +472,14 @@ body {
   opacity: 1;
 }
 .sticker-btn.locked:active { transform: translateY(3px); box-shadow: 0 3px 0 #86bd9e; }
+/* 오늘의 미션이 없는 쉬는 날 */
+.sticker-btn.rest {
+  background: linear-gradient(180deg, #efe8ff 0%, #ded2ff 100%);
+  box-shadow: 0 8px 0 #c3b0f0, 0 14px 22px rgba(155, 93, 229, 0.18);
+  color: #5b3f9e;
+  cursor: default;
+  opacity: 1;
+}
 .sticker-hint {
   margin: 12px 4px 0;
   font-size: 14px;
@@ -591,6 +690,14 @@ body {
 .mini-btn.danger { background: #fff; color: var(--red); border-color: #ffd0cd; box-shadow: 0 3px 0 #ffd0cd; }
 
 .editor { display: flex; flex-direction: column; gap: 8px; }
+.edit-tabs { margin: 2px 0 8px; }
+.edit-tabs .day-tab { font-size: 15px; padding: 8px 0 7px; }
+.edit-day-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-deep);
+}
 .edit-row {
   display: flex; gap: 8px; align-items: center;
   background: #fffaf0; border: 2px solid #f0e2c9; border-radius: 14px;
@@ -833,4 +940,18 @@ body {
   .hero-title-main { font-size: 21px; letter-spacing: -0.6px; }
   .board { gap: 5px; padding: 6px; }
   .cell-date { font-size: 10px; bottom: 3px; padding: 1px 5px; border-width: 1px; }
+  .day-tabs { gap: 4px; }
+  .day-tab { font-size: 15px; padding: 9px 0 8px; border-width: 2px; border-radius: 13px; }
+  .day-tab .dt-dot { width: 4px; height: 4px; margin-top: 3px; }
+  .section-head h2 { font-size: 19px; }
+  .section-head h2 .day-tag { font-size: 16px; }
+  .preview-note { font-size: 12px; padding: 8px 10px; }
+  .rest-title { font-size: 19px; }
+  .rest-sub { font-size: 13px; }
+  .edit-tabs .day-tab { font-size: 14px; padding: 7px 0 6px; }
+}
+
+/* 아주 넓은 카드 안에서 제목이 넘치지 않도록 */
+@media (max-width: 400px) {
+  .day-tabs { gap: 5px; }
 }
