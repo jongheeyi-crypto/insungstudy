@@ -362,7 +362,15 @@
       var tick = document.createElement("span");
       tick.className = "tick";
       tick.setAttribute("aria-hidden", "true");
-      tick.textContent = isDone ? "✓" : "";
+      if (isDone) {
+        tick.textContent = "✓";
+      } else if (m.steps && m.steps.length) {
+        var doneSteps = m.steps.filter(function (s) { return isStepDone(m, s); }).length;
+        if (doneSteps > 0) {
+          tick.textContent = doneSteps + "/" + m.steps.length;
+          tick.className = "tick partial";
+        }
+      }
 
       card.appendChild(emoji);
       card.appendChild(body);

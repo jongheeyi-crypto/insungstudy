@@ -21,6 +21,9 @@
 
 * { box-sizing: border-box; }
 
+/* hidden 속성이 display 값에 눌리지 않도록 확실히 숨깁니다 */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -266,6 +269,12 @@ body {
   background: linear-gradient(180deg, #ecfbf1 0%, #ddf7e6 100%);
   border-color: #b9ecc9;
 }
+.tick.partial {
+  border: 3px solid #b9d5ff;
+  background: #eaf2ff;
+  color: var(--blue);
+  font-size: 16px;
+}
 .mission.done .tick {
   background: var(--green);
   border: 3px solid #23a862;
@@ -411,9 +420,10 @@ body {
 }
 .cell-ms {
   position: absolute;
-  left: 3px;
+  left: 4px;
   top: 1px;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1;
   opacity: 0.95;
 }
 .cell.milestone { border-color: #f3cf82; background: #fffaeb; }
@@ -421,7 +431,7 @@ body {
   border-color: var(--gold);
   background: linear-gradient(180deg, #fff7de, #ffe9a8);
 }
-.cell.grand .cell-ms { font-size: 14px; left: 2px; top: 0; }
+.cell.grand .cell-ms { font-size: 17px; left: 4px; top: 0; }
 .cell.grand .cell-no { color: #b8890a; }
 .cell.pop { animation: cellPop 0.5s ease; }
 
