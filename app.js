@@ -1427,7 +1427,7 @@
   function copySyncLink() {
     var id = sync.room || cleanRoomId(byId("roomInput") ? byId("roomInput").value : "");
     if (!id) { toast("먼저 방 코드를 연결해 주세요."); return; }
-    var link = SHARE_BASE + "?v=6&room=" + id;
+    var link = SHARE_BASE + "?room=" + id;
     function ok() { toast("동기화 링크를 복사했어요. 아이패드 브라우저에 붙여넣어 열어 주세요."); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(link).then(ok, function () { showLinkInBox(link); });
@@ -1709,7 +1709,7 @@
           empty: isEmptyState(state)
         };
       },
-      link: function () { return sync.room ? SHARE_BASE + "?v=6&room=" + sync.room : ""; },
+      link: function () { return sync.room ? SHARE_BASE + "?room=" + sync.room : ""; },
       connect: connectSync,
       disconnect: disconnectSync,
       push: pushNow
