@@ -56,6 +56,7 @@
     online: false,
     subscribed: false,
     lastAppliedAt: 0,
+    lastError: null,
     applying: false,
     pushTimer: null,
     pending: null,
@@ -1278,10 +1279,18 @@
     };
     try {
       sync.fb.dbApi.set(sync.ref, payload).then(function () {
+        sync.lastError = null;
         sync.online = true;
         renderSync();
-      }, function () { /* 다음 변경 때 다시 시도 */ });
-    } catch (err) { /* 무시 */ }
+      }, function (err) {
+        sync.lastError = String((err && (err.code || err.message)) || err);
+        try { console.warn("[insungstudy] 동기화 저장 실패:", sync.lastError); } catch (e2) { /* 무시 */ }
+        renderSync();
+      });
+    } catch (err) {
+      sync.lastError = "sync:" + String(err && err.message);
+      try { console.warn("[insungstudy] 동기화 저장 오류:", sync.lastError); } catch (e2) { /* 무시 */ }
+    }
   }
 
   function pushSoon() {
@@ -1660,6 +1669,7 @@
           online: sync.online,
           subscribed: sync.subscribed,
           lastAppliedAt: sync.lastAppliedAt,
+          lastError: sync.lastError || null,
           empty: isEmptyState(state)
         };
       },
