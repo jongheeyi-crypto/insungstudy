@@ -48,6 +48,21 @@
   var CONFETTI_COLORS = ["#EE3E38", "#1F6FEB", "#FFC93C", "#2FBF71", "#FF8A3D", "#9B5DE5", "#FF7A8A"];
 
   var state = null;
+  var sync = {           /* 폰 · 아이패드 실시간 동기화 상태 */
+    room: null,
+    fb: null,
+    ref: null,
+    clientId: "c" + Math.random().toString(36).slice(2, 10),
+    online: false,
+    subscribed: false,
+    lastAppliedAt: 0,
+    applying: false,
+    pushTimer: null,
+    pending: null,
+    pendingTimer: null,
+    loading: null,
+    watchedConnected: false
+  };
   var viewDay = null;   /* 메인 화면에서 보고 있는 요일 (기본 = 오늘) */
   var editDay = null;   /* 엄마 설정에서 고치고 있는 요일 */
   var animateIndex = -1;
@@ -175,6 +190,7 @@
     s.boardsDone = Number.isFinite(raw.boardsDone) ? Math.max(0, Math.floor(raw.boardsDone)) : 0;
     s.history = Array.isArray(raw.history) ? raw.history.slice(-60) : [];
     if (typeof raw.lastVisit === "string") s.lastVisit = raw.lastVisit;
+    if (raw.resetAt) s.resetAt = Number(raw.resetAt) || 0; /* 초기화한 시각(기기 간 전파용) */
     return s;
   }
 
@@ -191,6 +207,7 @@
 
   function save() {
     try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch (err) { /* 저장 불가 환경 무시 */ }
+    if (!sync.applying) pushSoon(); /* 방에 연결돼 있으면 클라우드에도 같이 반영 */
   }
 
   function saveSoon() {
@@ -285,6 +302,7 @@
     state.checks = {};
     state.boardsDone = 0;
     state.history = [];
+    state.resetAt = Date.now(); /* 다른 기기에도 “초기화함”을 전달하기 위한 표시 */
     animateIndex = -1;
     save();
   }
@@ -1047,6 +1065,364 @@
     toast("백업을 가져왔어요! 스티커 " + state.board.length + "/30, 달성한 판 " + state.boardsDone + "개");
   }
 
+  /* ================= 실시간 동기화 (Firebase Realtime Database · 무료 Spark) =================
+     - 방 코드는 localStorage 에만 저장하고 주소창에서는 지웁니다(공개 저장소에 남기지 않음).
+     - 폰·아이패드는 익명 로그인으로 같은 방(rooms/<방코드>)을 구독해 1초 안에 서로 반영합니다. */
+  var ROOM_KEY = "insungstudy.room";
+  var SHARE_BASE = "https://jongheeyi-crypto.github.io/insungstudy/";
+  var MIN_ROOM_LEN = 12;
+  var FB_BASE = "https://www.gstatic.com/firebasejs/11.6.0/";
+  var FB_CONFIG = {
+    apiKey: "AIzaSyDNY7_-ZiyldaN0vKh_85PSgtDs1Vu-Ex4",
+    authDomain: "insungstudy-family.firebaseapp.com",
+    databaseURL: "https://insungstudy-family-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "insungstudy-family",
+    storageBucket: "insungstudy-family.firebasestorage.app",
+    messagingSenderId: "998917381035",
+    appId: "1:998917381035:web:ee085bbf08f4272bc350ee"
+  };
+
+  function storedRoom() {
+    try { return window.localStorage.getItem(ROOM_KEY) || ""; } catch (err) { return ""; }
+  }
+
+  function saveRoom(id) {
+    try {
+      if (id) window.localStorage.setItem(ROOM_KEY, id);
+      else window.localStorage.removeItem(ROOM_KEY);
+    } catch (err) { /* 저장 불가 환경 무시 */ }
+  }
+
+  function cleanRoomId(raw) {
+    if (typeof raw !== "string") return "";
+    var id = raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    return id.length >= MIN_ROOM_LEN ? id.slice(0, 64) : "";
+  }
+
+  function readRoomParam() {
+    try {
+      if (typeof window.URLSearchParams !== "function") return null;
+      var room = new window.URLSearchParams(window.location.search).get("room");
+      return room ? String(room) : null;
+    } catch (err) { return null; }
+  }
+
+  function stripRoomParam() {
+    try {
+      if (typeof window.URL !== "function") return;
+      var url = new window.URL(window.location.href);
+      if (!url.searchParams.has("room")) return;
+      url.searchParams.delete("room");
+      var q = url.searchParams.toString();
+      window.history.replaceState({}, document.title, url.pathname + (q ? "?" + q : "") + url.hash);
+    } catch (err) { /* 주소 정리 실패는 무시 */ }
+  }
+
+  /* 기록이 하나도 없는 상태인지 (스티커 · 달성한 판 · 미션 체크) */
+  function isEmptyState(s) {
+    if (!s) return true;
+    var checkDays = 0;
+    if (s.checks && typeof s.checks === "object") {
+      Object.keys(s.checks).forEach(function (day) {
+        var one = s.checks[day];
+        if (one && typeof one === "object" && Object.keys(one).length) checkDays += 1;
+      });
+    }
+    var stickers = (s.board && s.board.length) || 0;
+    return stickers === 0 && !(Number(s.boardsDone) || 0) && checkDays === 0;
+  }
+
+  function progressScore(s) {
+    return ((Number(s && s.boardsDone) || 0) * BOARD_SIZE) + (((s && s.board && s.board.length) || 0));
+  }
+
+  function loadFirebase() {
+    if (!sync.loading) {
+      sync.loading = Promise.all([
+        import(FB_BASE + "firebase-app.js"),
+        import(FB_BASE + "firebase-auth.js"),
+        import(FB_BASE + "firebase-database.js")
+      ]).then(function (mods) {
+        var app = mods[0].initializeApp(FB_CONFIG);
+        return {
+          app: app,
+          auth: mods[1].getAuth(app),
+          authApi: mods[1],
+          db: mods[2].getDatabase(app),
+          dbApi: mods[2]
+        };
+      });
+      sync.loading = sync.loading.then(null, function (err) {
+        sync.loading = null;
+        throw err;
+      });
+    }
+    return sync.loading;
+  }
+
+  function setSyncStatus(name) {
+    var el = byId("syncStatus");
+    if (!el) return;
+    if (el.getAttribute("data-state") !== name) el.setAttribute("data-state", name);
+    el.textContent = name === "online" ? "🟢 실시간 연결됨"
+      : (name === "wait" ? "🟡 연결 중·오프라인" : "⚪ 이 기기만 저장 중");
+  }
+
+  function renderSync() {
+    var name = !sync.room ? "off" : ((sync.online && sync.subscribed) ? "online" : "wait");
+    setSyncStatus(name);
+    var input = byId("roomInput");
+    if (input && document.activeElement !== input) input.value = sync.room || "";
+    var offBtn = byId("roomDisconnectBtn");
+    if (offBtn) offBtn.disabled = !sync.room;
+    var foot = byId("footNote");
+    if (foot) {
+      foot.textContent = sync.room
+        ? "폰 · 아이패드 실시간 동기화 중 · 무료 GitHub Pages"
+        : "이 브라우저에만 저장돼요 · 무료 GitHub Pages";
+    }
+  }
+
+  function detachRoom() {
+    if (sync.ref) {
+      try { if (sync.fb) sync.fb.dbApi.off(sync.ref); } catch (err) { /* 무시 */ }
+    }
+    sync.ref = null;
+    sync.subscribed = false;
+    sync.lastAppliedAt = 0;
+    window.clearTimeout(sync.pushTimer);
+    window.clearTimeout(sync.pendingTimer);
+    sync.pending = null;
+  }
+
+  function startRoom(id) {
+    if (!sync.fb || sync.room !== id || sync.ref) return;
+    var fb = sync.fb;
+    try {
+      if (!sync.watchedConnected) {
+        sync.watchedConnected = true;
+        var connRef = fb.dbApi.ref(fb.db, ".info/connected");
+        fb.dbApi.onValue(connRef, function (snap) {
+          sync.online = !!snap.val();
+          renderSync();
+        });
+      }
+      var roomRef = fb.dbApi.ref(fb.db, "rooms/" + id);
+      sync.ref = roomRef;
+      fb.dbApi.onValue(roomRef, function (snap) {
+        if (sync.room !== id) return;
+        sync.subscribed = true;
+        renderSync();
+        onRemote(snap);
+      }, function (err) {
+        if (sync.room !== id) return;
+        sync.subscribed = false;
+        renderSync();
+        if (err && String(err.code || "").indexOf("permission") >= 0) {
+          toast("이 방에는 들어갈 수 없어요. 방 코드를 다시 확인해 주세요.");
+        }
+      });
+      renderSync();
+    } catch (err) { renderSync(); }
+  }
+
+  function connectSync(roomId) {
+    var id = cleanRoomId(roomId);
+    if (!id) { toast("방 코드가 올바르지 않아요. 동기화 링크의 코드를 그대로 붙여넣어 주세요."); return false; }
+    detachRoom();
+    sync.room = id;
+    sync.online = false;
+    sync.subscribed = false;
+    saveRoom(id);
+    renderSync();
+    loadFirebase().then(function (fb) {
+      sync.fb = fb;
+      if (sync.room !== id) return;
+      if (fb.auth.currentUser) { startRoom(id); return; }
+      return fb.authApi.signInAnonymously(fb.auth).then(function () { startRoom(id); }, function () {
+        if (sync.room !== id) return;
+        detachRoom();
+        sync.room = null;
+        saveRoom(null);
+        renderSync();
+        toast("동기화 로그인에 실패했어요. 잠시 뒤 다시 연결해 주세요.");
+      });
+    }).catch(function () {
+      if (sync.room !== id) return;
+      detachRoom();
+      sync.room = null;
+      saveRoom(null);
+      renderSync();
+      toast("지금은 동기화를 켤 수 없어요. 이 기기에만 저장할게요.");
+    });
+    return true;
+  }
+
+  function disconnectSync() {
+    detachRoom();
+    sync.room = null;
+    sync.online = false;
+    saveRoom(null);
+    renderSync();
+    toast("이 기기에만 저장하도록 바꿨어요. 스티커는 그대로 남아 있어요.");
+  }
+
+  function pushNow() {
+    window.clearTimeout(sync.pushTimer);
+    if (!sync.ref || !sync.fb) return;
+    var payload = {
+      state: JSON.parse(JSON.stringify(state)),
+      updatedAt: sync.fb.dbApi.serverTimestamp(),
+      clientId: sync.clientId,
+      v: 1
+    };
+    try {
+      sync.fb.dbApi.set(sync.ref, payload).then(function () {
+        sync.online = true;
+        renderSync();
+      }, function () { /* 다음 변경 때 다시 시도 */ });
+    } catch (err) { /* 무시 */ }
+  }
+
+  function pushSoon() {
+    if (!sync.ref) return;
+    window.clearTimeout(sync.pushTimer);
+    sync.pushTimer = window.setTimeout(pushNow, 260);
+  }
+
+  function flushPendingRemote() {
+    if (!sync.pending) return;
+    var job = sync.pending;
+    sync.pending = null;
+    window.clearTimeout(sync.pendingTimer);
+    commitRemote(job.state, job.at);
+  }
+
+  function applyRemote(remoteState, remoteAt) {
+    var active = document.activeElement;
+    var typing = !!(active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA") && active.getAttribute("data-field"));
+    if (typing) { /* 입력 중이면 손가락이 멈춘 뒤 반영 */
+      sync.pending = { state: remoteState, at: remoteAt };
+      window.clearTimeout(sync.pendingTimer);
+      sync.pendingTimer = window.setTimeout(flushPendingRemote, 2200);
+      return;
+    }
+    commitRemote(remoteState, remoteAt);
+  }
+
+  function commitRemote(remoteState, remoteAt) {
+    var before = JSON.stringify({ board: state.board, boardsDone: state.boardsDone, reward: state.reward, schedule: state.schedule });
+    try { window.localStorage.setItem(KEY + ".sync-backup", JSON.stringify(state)); } catch (err) { /* 무시 */ }
+    state = remoteState;
+    var today = todayKey();
+    if (state.lastVisit !== today) state.lastVisit = today;
+    sync.applying = true;   /* 되돌아오는 에코 방지: 저장만 하고 다시 밀지 않음 */
+    save();
+    sync.applying = false;
+    sync.lastAppliedAt = Math.max(sync.lastAppliedAt, Number(remoteAt) || 0);
+    render();
+    renderSync();
+    var sheet = byId("settingsWrap");
+    if (sheet && !sheet.hidden) renderEditor();
+    var after = JSON.stringify({ board: state.board, boardsDone: state.boardsDone, reward: state.reward, schedule: state.schedule });
+    if (before !== after) toast("🔄 다른 기기 기록과 맞췄어요");
+    if (state.board.length >= BOARD_SIZE) window.setTimeout(openCelebrate, 520);
+  }
+
+  function onRemote(snap) {
+    var data = snap.val();
+    var remoteAt = data && data.updatedAt ? Number(data.updatedAt) || 0 : 0;
+    if (!data) { /* 클라우드 방이 아직 비었음 → 이 기기 기록을 올린다 (기존 스티커 보존) */
+      sync.lastAppliedAt = 0;
+      if (!isEmptyState(state)) pushNow();
+      return;
+    }
+    if (data.clientId === sync.clientId) { /* 내가 쓴 값이 되돌아온 것 */
+      if (remoteAt > sync.lastAppliedAt) sync.lastAppliedAt = remoteAt;
+      return;
+    }
+    if (remoteAt && remoteAt <= sync.lastAppliedAt) return; /* 이미 반영한 옛 값 */
+
+    var remoteState = data.state ? normalizeState(data.state) : null;
+    if (!remoteState) return;
+
+    /* 초기화는 진행도보다 우선한다: 더 나중에 초기화한 기록을 따른다 */
+    var remoteReset = Number(remoteState.resetAt) || 0;
+    var localReset = Number(state.resetAt) || 0;
+    if (remoteReset > localReset) { applyRemote(remoteState, remoteAt); return; }
+    if (localReset > remoteReset) {
+      sync.lastAppliedAt = Math.max(sync.lastAppliedAt, remoteAt);
+      pushNow();
+      return;
+    }
+
+    var remoteEmpty = isEmptyState(remoteState);
+    if (remoteEmpty) { /* 상대는 비었고 내게 기록이 있으면 내 기록으로 채운다 */
+      sync.lastAppliedAt = Math.max(sync.lastAppliedAt, remoteAt);
+      if (!isEmptyState(state)) pushNow();
+      return;
+    }
+    if (isEmptyState(state)) { applyRemote(remoteState, remoteAt); return; }
+
+    var localScore = progressScore(state);
+    var remoteScore = progressScore(remoteState);
+    if (localScore > remoteScore) { /* 이 기기가 더 진행됨 → 덮어쓰지 않고 올린다 */
+      sync.lastAppliedAt = Math.max(sync.lastAppliedAt, remoteAt);
+      pushNow();
+      return;
+    }
+    if (remoteScore > localScore) { applyRemote(remoteState, remoteAt); return; }
+    if (JSON.stringify(remoteState) === JSON.stringify(state)) {
+      sync.lastAppliedAt = Math.max(sync.lastAppliedAt, remoteAt);
+      return;
+    }
+    applyRemote(remoteState, remoteAt);
+  }
+
+  function copySyncLink() {
+    var id = sync.room || cleanRoomId(byId("roomInput") ? byId("roomInput").value : "");
+    if (!id) { toast("먼저 방 코드를 연결해 주세요."); return; }
+    var link = SHARE_BASE + "?v=6&room=" + id;
+    function ok() { toast("동기화 링크를 복사했어요. 아이패드 브라우저에 붙여넣어 열어 주세요."); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(ok, function () { showLinkInBox(link); });
+    } else {
+      showLinkInBox(link);
+    }
+  }
+
+  function showLinkInBox(link) {
+    var box = byId("backupBox");
+    if (box) { box.value = link; box.focus(); box.select(); }
+    toast("아래 백업 칸에 링크를 넣었어요. 길게 눌러 복사해 주세요.");
+  }
+
+  function bindSyncEvents() {
+    var input = byId("roomInput");
+    var connectBtn = byId("roomConnectBtn");
+    var shareBtn = byId("roomShareBtn");
+    var offBtn = byId("roomDisconnectBtn");
+
+    if (connectBtn) {
+      connectBtn.addEventListener("click", function () {
+        var id = cleanRoomId(input ? input.value : "");
+        if (!id) { toast("방 코드를 붙여넣어 주세요 (12자 이상)."); if (input) input.focus(); return; }
+        if (id === sync.room && sync.subscribed) { toast("이미 이 방에 연결돼 있어요."); return; }
+        if (connectSync(id)) toast("실시간 동기화를 연결하는 중이에요…");
+      });
+    }
+    if (shareBtn) shareBtn.addEventListener("click", copySyncLink);
+    if (offBtn) offBtn.addEventListener("click", disconnectSync);
+    if (input) {
+      input.addEventListener("keydown", function (ev) {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        if (connectBtn) connectBtn.click();
+      });
+    }
+    document.addEventListener("blur", flushPendingRemote, true);
+  }
+
   /* ---------- 이벤트 연결 ---------- */
   function bindEvents() {
     var list = byId("missionList");
@@ -1238,6 +1614,15 @@
     render();
     renderEditor();
     bindEvents();
+    bindSyncEvents();
+    renderSync();
+
+    /* 가족 방 연결: 주소의 ?room= (한 번만) > 이 기기에 저장된 방 코드 */
+    var urlRoom = readRoomParam();
+    if (urlRoom !== null) stripRoomParam();
+    var room = cleanRoomId(urlRoom) || cleanRoomId(storedRoom());
+    if (room) connectSync(room);
+
     if (resetResult === "done") {
       window.setTimeout(function () { toast("🔄 스티커판과 오늘 미션을 깔끔히 초기화했어요!"); }, 450);
     } else if (resetResult === "already") {
@@ -1264,6 +1649,24 @@
     viewDay: function () { return viewDay; },
     hasTodaySticker: hasTodaySticker,
     appliedResets: appliedResets,
-    defaultSchedule: function () { return defaultSchedule(); }
+    defaultSchedule: function () { return defaultSchedule(); },
+    sync: {
+      room: function () { return sync.room; },
+      clientId: function () { return sync.clientId; },
+      status: function () {
+        return {
+          room: sync.room,
+          engineLoaded: !!sync.fb,
+          online: sync.online,
+          subscribed: sync.subscribed,
+          lastAppliedAt: sync.lastAppliedAt,
+          empty: isEmptyState(state)
+        };
+      },
+      link: function () { return sync.room ? SHARE_BASE + "?v=6&room=" + sync.room : ""; },
+      connect: connectSync,
+      disconnect: disconnectSync,
+      push: pushNow
+    }
   };
 })();

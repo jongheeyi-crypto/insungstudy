@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='78'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="styles.css?v=5" />
+<link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
 <!-- ===== 공용 SVG 심볼 (직접 그린 발자국 · 방패 배지) ===== -->
@@ -116,7 +116,7 @@
   </main>
 
   <footer class="foot">
-    <p>이 브라우저에만 저장돼요 · 무료 GitHub Pages</p>
+    <p id="footNote">이 브라우저에만 저장돼요 · 무료 GitHub Pages</p>
     <p class="foot-small">만든 사람: 엄마 💛 · 우리 인성이 화이팅!</p>
   </footer>
 </div>
@@ -134,6 +134,20 @@
       <div class="field">
         <label class="field-label" for="rewardInput">🎁 상품 이름</label>
         <input id="rewardInput" class="text-input" type="text" maxlength="40" placeholder="다이소 가서 원하는 거 고르기" />
+      </div>
+
+      <div class="field">
+        <p class="field-label">🔄 폰 · 아이패드 실시간 동기화</p>
+        <p class="sync-status" id="syncStatus" data-state="off" role="status" aria-live="polite">⚪ 이 기기만 저장 중</p>
+        <div class="row">
+          <input id="roomInput" class="text-input" type="text" maxlength="64" placeholder="가족 방 코드 붙여넣기" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="가족 방 코드" />
+          <button type="button" id="roomConnectBtn" class="mini-btn">연결</button>
+        </div>
+        <div class="row">
+          <button type="button" id="roomShareBtn" class="mini-btn ghost">🔗 동기화 링크 복사</button>
+          <button type="button" id="roomDisconnectBtn" class="mini-btn ghost" disabled>연결 해제</button>
+        </div>
+        <p class="field-help">폰과 아이패드에서 같은 방 코드로 열면 스티커와 미션이 1초 안에 같이 바뀌어요. 방 코드는 이 기기에만 저장되고 인터넷 주소에 남지 않아요.</p>
       </div>
 
       <div class="field">
@@ -209,6 +223,6 @@
 <div class="stamp" id="stampLayer" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

@@ -926,6 +926,27 @@ body {
 }
 @keyframes toastIn { from { transform: translate(-50%, 14px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 
+/* ===== 실시간 동기화 (폰 · 아이패드) ===== */
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  border: 1px solid #e3e7ef;
+  background: #f1f3f7;
+  color: #5b6472;
+}
+.sync-status[data-state="online"] { background: #e9f9ef; color: #1c7a45; border-color: #c6ecd5; }
+.sync-status[data-state="wait"] { background: #fff6dd; color: #8a6400; border-color: #f4e2ac; }
+.sync-status[data-state="off"] { background: #f1f3f7; color: #5b6472; border-color: #e3e7ef; }
+#roomInput { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.3px; }
+.sync-field .row .mini-btn { flex: 0 0 auto; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
