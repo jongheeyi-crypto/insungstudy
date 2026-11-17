@@ -1137,6 +1137,42 @@
     return ((Number(s && s.boardsDone) || 0) * BOARD_SIZE) + (((s && s.board && s.board.length) || 0));
   }
 
+  /* Realtime Database 는 키에 . # $ / [ ] 를 쓸 수 없습니다.
+     미션 단계 키가 "m_books#1" 처럼 #을 담으므로 저장 전에 키만 안전하게 바꿔 두고 읽을 때 되돌립니다. */
+  var KEY_ESCAPES = { ".": "%2E", "#": "%23", "$": "%24", "/": "%2F", "[": "%5B", "]": "%5D" };
+
+  function escapeKey(k) {
+    return String(k).replace(/[.#$/\[\]]/g, function (c) { return KEY_ESCAPES[c]; });
+  }
+
+  function unescapeKey(k) {
+    return String(k).replace(/%2E|%23|%24|%2F|%5B|%5D/g, function (m) {
+      var found = m;
+      Object.keys(KEY_ESCAPES).forEach(function (c) { if (KEY_ESCAPES[c] === m) found = c; });
+      return found;
+    });
+  }
+
+  function encodeForDb(value) {
+    if (Array.isArray(value)) return value.map(encodeForDb);
+    if (value && typeof value === "object") {
+      var out = {};
+      Object.keys(value).forEach(function (k) { out[escapeKey(k)] = encodeForDb(value[k]); });
+      return out;
+    }
+    return value;
+  }
+
+  function decodeFromDb(value) {
+    if (Array.isArray(value)) return value.map(decodeFromDb);
+    if (value && typeof value === "object") {
+      var out = {};
+      Object.keys(value).forEach(function (k) { out[unescapeKey(k)] = decodeFromDb(value[k]); });
+      return out;
+    }
+    return value;
+  }
+
   function loadFirebase() {
     if (!sync.loading) {
       sync.loading = Promise.all([
@@ -1170,7 +1206,7 @@
   }
 
   function renderSync() {
-    var name = !sync.room ? "off" : ((sync.online && sync.subscribed) ? "online" : "wait");
+    var name = !sync.room ? "off" : ((sync.online && sync.subscribed && !sync.lastError) ? "online" : "wait");
     setSyncStatus(name);
     var input = byId("roomInput");
     if (input && document.activeElement !== input) input.value = sync.room || "";
@@ -1272,7 +1308,7 @@
     window.clearTimeout(sync.pushTimer);
     if (!sync.ref || !sync.fb) return;
     var payload = {
-      state: JSON.parse(JSON.stringify(state)),
+      state: encodeForDb(JSON.parse(JSON.stringify(state))),
       updatedAt: sync.fb.dbApi.serverTimestamp(),
       clientId: sync.clientId,
       v: 1
@@ -1352,7 +1388,7 @@
     }
     if (remoteAt && remoteAt <= sync.lastAppliedAt) return; /* 이미 반영한 옛 값 */
 
-    var remoteState = data.state ? normalizeState(data.state) : null;
+    var remoteState = data.state ? normalizeState(decodeFromDb(data.state)) : null;
     if (!remoteState) return;
 
     /* 초기화는 진행도보다 우선한다: 더 나중에 초기화한 기록을 따른다 */
